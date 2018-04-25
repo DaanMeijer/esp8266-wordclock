@@ -266,7 +266,7 @@ void renderSpecificTime(int relevantHour, int minutes){
   }
   //Serial.println("set the minute leds");
 
-  for(int i=0; i<minutes%5; i++){
+  for(int i=0; i<=minutes%5; i++){
     int pos = 94 - i;
     //Serial.print("setting dot ");
     //Serial.println(pos);
