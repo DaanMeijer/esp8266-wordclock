@@ -372,7 +372,7 @@ void setup() {
 void loop() {
   Serial.println("Looping...");
   OTA_loop();
-  //MQTT_loop();
+  MQTT_loop();
   
   runFunctions();
 
