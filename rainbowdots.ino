@@ -298,6 +298,34 @@ void runDemo(){
   renderSpecificTime(currentDemoHour + 1,0);
 }
 
+void callback(byte* payload, unsigned int length) {
+
+//  Serial.print("Payload: ");
+//  for(int a=0; a<length; a++){
+//    Serial.print((char)payload[a]);
+//  }
+//  Serial.println();
+
+  switch(payload[0]){
+      case 'b':
+      brightness = payload[1];
+      brightness = 255.0f;
+      break;
+
+      case 's':
+      hue_cycle_in_seconds = payload[1];
+      break;
+
+      case 'r':
+      for(int i=0; i < pixels.size(); i++){
+        AnimatedPixel * pixel = pixels[i];
+        pixel->setRainbow();
+      }
+      break;
+  }
+
+}
+
 void setup() {
 
 
