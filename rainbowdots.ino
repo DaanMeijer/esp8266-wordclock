@@ -331,14 +331,20 @@ void setup() {
     doOta();
 
     setupNtp();
-
+    return;
+    MQTT_init("wordclock", callback);
+    Serial.println("init MQTT");
     
+    MQTT_publish("Hello Wordclock!");
+    Serial.println("MQTT message sent");
     
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  ArduinoOTA.handle();
+  Serial.println("Looping...");
+  OTA_loop();
+  //MQTT_loop();
   
   runFunctions();
 

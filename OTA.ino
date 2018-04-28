@@ -19,9 +19,19 @@ void doOta(){
       FastLED.show();
     });
     ArduinoOTA.onEnd([]() {
-      Serial.println("\nOTA End");
+      Serial.println("OTA End");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      
+      float complete = (float)progress / (float)total;
+      uint8_t pos = complete * 94.0f;
+      if(pos > 93){
+        pos = 93;
+      }
+      
+      leds[pos] = CRGB(random(0, 0xffffff));
+      FastLED.show();
+      
       Serial.printf("OTA Progress: %u%%\r", (progress / (total / 100)));
     });
     ArduinoOTA.onError([](ota_error_t error) {
@@ -37,3 +47,8 @@ void doOta(){
     ArduinoOTA.begin();
 
 }
+
+void OTA_loop(){
+  ArduinoOTA.handle();
+}
+
