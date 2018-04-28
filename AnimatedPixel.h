@@ -1,4 +1,13 @@
 
+
+#define FADE_IN_TIME_IN_SECONDS 5.0f
+#define FADE_OUT_TIME_IN_SECONDS 5.0f
+
+
+float brightness = 255.0f;
+float hue_cycle_in_seconds = 120.0f;
+
+
 class AnimatedPixel {
 
   public:
@@ -19,12 +28,14 @@ class AnimatedPixel {
 
     bool clearNext = false;
 
+    uint8_t r = 0;
+    uint8_t g = 0;
+    uint8_t b = 0;
+
     Mode mode = constant;
 
-    
-    
-    void tick(float timeFactor){
-
+    void tickBrightness(float timeFactor){
+      
       if(this->clearNext){
           //this->hue = 0;
           //this->brightness = 0;
@@ -35,16 +46,21 @@ class AnimatedPixel {
       }
 
       if(this->brightness - this->targetBrightness > 0.01f){
-          this->brightness = std::max(0.0f,this->brightness - (timeFactor * (256.0f/5.0f)));
+          this->brightness = std::max(0.0f,this->brightness - (timeFactor * (brightness/FADE_OUT_TIME_IN_SECONDS)));
       }
       
       if(this->brightness - this->targetBrightness < -0.01f){
-          this->brightness = std::min(255.0f,this->brightness + (timeFactor * (256.0f/5.0f)));
+          this->brightness = std::min(255.0f,this->brightness + (timeFactor * (brightness/FADE_IN_TIME_IN_SECONDS)));
       }
+      
+    }
+    
+    void tick(float timeFactor){
+
       
       switch(this->mode){
         case rainbow:
-          this->hue += (timeFactor * (256.0f/4.5f));
+          this->hue += (timeFactor * (256.0f/hue_cycle_in_seconds));
           break;
 
         case fade:
@@ -68,7 +84,7 @@ class AnimatedPixel {
       if(this->mode != rainbow){
         Serial.println(this->mode);
         this->hue = random(0,256);    
-        this->targetBrightness = 255;
+        this->targetBrightness = brightness;
         this->saturation = 255;
         this->mode = rainbow;
       }else{
