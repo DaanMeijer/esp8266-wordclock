@@ -1,4 +1,15 @@
 
+#include <vector>
+
+typedef struct intervalFunction {
+  int intervalInMs;
+  int prevExecution;
+  void (*function)();
+} intervalFunction;
+
+std::vector<intervalFunction*> intervalFunctions;
+
+
 void addFunction(void (*function)(), int intervalInMs){
   
   intervalFunction * func = (intervalFunction *)malloc(sizeof *func) ;
@@ -10,7 +21,7 @@ void addFunction(void (*function)(), int intervalInMs){
   intervalFunctions.push_back(func);
 }
 
-void runFunctions(){
+void Scheduler_loop(){
   for(int i=0; i<intervalFunctions.size(); i++){
     intervalFunction *func = intervalFunctions[i];
 

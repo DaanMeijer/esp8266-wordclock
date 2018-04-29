@@ -9,22 +9,22 @@ char * topic;
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-//    Serial.print("Attempting MQTT connection...");
+    Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
-//      Serial.println("connected");
+      Serial.println("connected");
 
       // ... and resubscribe
-      if(topic != 0){
+      if(topic != NULL){
         client.subscribe(topic);
       }
     } else {
-//      Serial.print("failed, rc=");
-//      Serial.print(client.state());
-//      Serial.println(" try again in 5 seconds");
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
     }
@@ -35,8 +35,6 @@ const char* mqtt_server = "192.168.1.1";
 
 
 void MQTT_publish(const char * msg){
-//  Serial.print("Publish message: ");
-//  Serial.println(msg);
   client.publish(topic, msg);
 }
 
@@ -60,7 +58,8 @@ void MQTT_init(const char * _topic, void (*_pCallback)(byte *, unsigned int)){
   topic = new char[strlen(_topic) + 1];
   memcpy(topic, _topic, strlen(_topic)+1);
 
-//  Serial.println("MQTT_init");
+  Serial.println("MQTT_init");
+  Serial.printf("Topic: [%s]\n", topic);
   
   client.setServer(mqtt_server, 1883);
   client.setCallback(MQTT_callback);
@@ -72,29 +71,11 @@ void MQTT_init(const char * _topic, void (*_pCallback)(byte *, unsigned int)){
 
   pCallback = _pCallback;
 
-  
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-//  Serial.print("Message arrived [");
-//  Serial.print(topic);
-//  Serial.print("] ");
-//  for (int i = 0; i < length; i++) {
-//    Serial.print((char)payload[i]);
-//  }
-//  Serial.println();
-
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-    digitalWrite(BUILTIN_LED, LOW); // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is acive low on the ESP-01)
-  } else {
-    digitalWrite(BUILTIN_LED, HIGH); // Turn the LED off by making the voltage HIGH
-  }
+  reconnect();
 }
 
 void MQTT_loop(){
+//  Serial.println("MQTT_loop");
   if (!client.connected()) {
     reconnect();
   }

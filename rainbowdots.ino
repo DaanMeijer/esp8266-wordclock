@@ -1,23 +1,7 @@
-//#include <TimeLib.h>
-#include <Time.h>
 
-#define FASTLED_ESP8266_RAW_PIN_ORDER
-#define FASTLED_ALLOW_INTERRUPTS 0
+#include <Syslog.h>
 
-#include "FastLED.h"
-
-
-//254
-// 1e letter 49
-// laatste letter eindigt 208
-//229
-// 1e letter 24
-// laatste 187
-
-
-#include <TimeLib.h>
 #include <vector>
-
 
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
@@ -25,166 +9,26 @@
 
 #include <ArduinoOTA.h>
 
-
+#include <TimeLib.h>
 
 
 #define DEBUG_SCHEDULER 0
-#define DEBUG_LEDS 0
 
-#define NUM_LEDS        95
-#define DATA_PIN        D1 // D2 Pin on Wemos mini
+#define SCREEN_DATA_PIN  D1 // D2 Pin on Wemos mini
+#define NUM_LEDS 94
 
-
-CRGB leds[NUM_LEDS];
-
-#include "AnimatedPixel.h"
-
-typedef struct intervalFunction {
-  int intervalInMs;
-  int prevExecution;
-  void (*function)();
-} intervalFunction;
-
-std::vector<intervalFunction*> intervalFunctions;
-
-
-typedef struct rainbowPosition {
-  uint8_t position;
-  double hue;
-  double hueDelta;
-  double saturation;
-  double saturationDelta;
-  double brightness;
-  double brightnessDelta;
-} rainbowPosition;
+#include "AnimatedPixels.h"
 
 
 
-std::vector<rainbowPosition> rainbowPositions = {
-};
+WiFiUDP udpClient;
+Syslog syslog(udpClient, "192.168.1.1", 514, "wordclock", "main", LOG_KERN);
 
+AnimatedPixels * screen = new AnimatedPixels(NUM_LEDS);
 
-uint8_t gHue = 0;
-uint8_t hueDelta = 1;
-
-void initRainbow(){
-  for(int i=0; i<NUM_LEDS; i++){
-    rainbowPosition pos;
-    pos.position = i;
-    pos.hue = map(i, 0, NUM_LEDS, 0, 255);
-    pos.hueDelta = 0;
-    pos.saturation = 255;
-    pos.saturationDelta = 0;
-    pos.brightness = 255;
-    pos.brightness = -0.05d;
-
-    rainbowPositions.push_back(pos);
-  }
+void screenTick(){
+  screen->tick();
 }
-    
-void rainbowTick(){
-  for(int i=0; i<rainbowPositions.size(); i++){
-    rainbowPosition * led = &rainbowPositions[i];
-
-    led->hue += led->hueDelta;
-    
-    led->saturation = std::max(0.0d, std::min(255.0d, led->saturation + led->saturationDelta));
-    
-    led->brightness = std::max(0.0d, std::min(255.0d, led->brightness + led->brightnessDelta));
-    
-    
-    leds[led->position].setHSV(led->hue, led->saturation, led->brightness);
-#if DEBUG_LEDS
-    Serial.print("setting led ");
-    Serial.print(led->position);
-    Serial.print(" to hue ");
-    Serial.println(led->currentHue);
-#endif
-  }
-  FastLED.show();
-}
-
-
-void addFunction(void (*function)(), int intervalInMs);
-void runFunctions();
-
-
-std::vector<AnimatedPixel*> pixels = {};
-
-void initAnimatedPixels(){
-  for(int i=0; i<NUM_LEDS; i++){
-    AnimatedPixel * pixel = new AnimatedPixel();
-    pixel->position = i;
-    pixel->hue = 0;
-    pixel->saturation = 0;
-    pixel->brightness = 100;
-
-    pixels.push_back(pixel);
-  }
-}
-
-long animatedPixelTickPrevMicros = micros();
-
-void animatedPixelTick(){
-
-  long difference = micros() - animatedPixelTickPrevMicros;
-  animatedPixelTickPrevMicros = micros();
-
-  float timeFactor = difference / 1000000.0f;
-
-  for(int i=0; i < pixels.size(); i++){
-    pixels[i]->tick(timeFactor);
-  }
-  
-}
-
-void renderAnimatedPixels(){
-  //Serial.println("renderAnimatedPixels");
-  for(int i=0; i < pixels.size(); i++){
-    AnimatedPixel * pixel = pixels[i];
-
-    int iHue = pixel->hue;
-    iHue = iHue % 256;
-    uint8_t hue = iHue;
-    leds[pixel->position].setHSV(hue, pixel->saturation, pixel->brightness);
-
-/*
-    Serial.println("Pixel");
-    Serial.println(pixel->position);
-    Serial.println(pixel->mode);
-    Serial.println(hue);
-    Serial.println(pixel->saturation);
-    Serial.println(pixel->brightness);
-    Serial.println();
-*/
-  }
-  
-  FastLED.show();
-}
-
-void timeTick(){
-  time_t t = now();
-  int size = rainbowPositions.size();
-  rainbowPositions[t % size].hueDelta = 0;
-  rainbowPositions[(t - 1) % size].hueDelta = 1;
-}
-
-void secondsPulse(){
-  
-  for(int i=0; i<rainbowPositions.size(); i++){
-    rainbowPositions[i].brightness = 255;
-    rainbowPositions[i].brightnessDelta = -0.1d;
-  }
-  
-}
-
-
-
-void doOta();
-void startWiFi();
-
-void setupNtp();
-
 
 std::vector<std::vector<int>> hourVectors = {
   {}, //0, skip het
@@ -224,28 +68,47 @@ std::vector<std::vector<int>> minuteVectors = {
 
 
 
+
 void renderSpecificTime(int relevantHour, int minutes){
   
 
-  //Serial.print("Current time: ");
-  //Serial.print(hour);
-  //Serial.print(":");
-  //Serial.println(minutes);
+//  Serial.print("Current time: ");
+//  Serial.print(relevantHour);
+//  Serial.print(":");
+//  Serial.println(minutes);
 
-  for(int i=0; i<NUM_LEDS; i++){
-    pixels[i]->clear();
-  }
+  screen->clear();
 
   
-  //Serial.println("cleared the leds");
+//  Serial.println("cleared the leds");
 
+  /**/
+  
   std::vector<int> staticLeds = {
     1,2,3,  5,6,  8,9
   };
   
+  /*/
+  
+  std::vector<int> staticLeds = {
+    1,2,3, 4, 5,6, 7, 8,9, 10,
+    11,12,13, 14, 15,16, 17, 18,19, 20,
+    21,22,23, 24, 25,26, 27, 28,29, 30,
+    31,32,33, 34, 35,36, 37, 38,39, 40,
+    41,42,43, 44, 45,46, 47, 48,49, 50,
+    51,52,53, 54, 55,56, 57, 58,59, 60,
+    61,62,63, 64, 65,66, 67, 68,69, 70,
+    71,72,73, 74, 75,76, 77, 78,79, 80,
+    81,82,83, 84, 85,86, 87, 88,89, 90,
+    
+    91,92,93, 94
+  };
+
+  /**/
+  
   for(int i=0; i<staticLeds.size(); i++){
     int pos = staticLeds[i] - 1;
-    pixels[pos]->setRainbow();
+    screen->on(pos);
   }
 
 
@@ -253,49 +116,50 @@ void renderSpecificTime(int relevantHour, int minutes){
   
   for(int i=0; i<hourLeds.size(); i++){
     int pos = hourLeds[i] - 1;
-    pixels[pos]->setRainbow();
+    screen->on(pos);
   }
-  //Serial.println("set the hour leds");
+//  Serial.println("set the hour leds");
 
   int minuteIndex = minutes/5;
   std::vector<int> minuteLeds = minuteVectors[minuteIndex];
 
   for(int i=0; i<minuteLeds.size(); i++){
     int pos = minuteLeds[i] - 1;
-    pixels[pos]->setRainbow();
+    screen->on(pos);
   }
-  //Serial.println("set the minute leds");
+//  Serial.println("set the minute leds");
 
-  for(int i=0; i<=minutes%5; i++){
+  for(int i=1; i<=minutes%5; i++){
     int pos = 94 - i;
-    //Serial.print("setting dot ");
-    //Serial.println(pos);
-    pixels[pos]->setRainbow();
+//    Serial.print("setting dot ");
+//    Serial.println(pos);
+    screen->on(pos);
   }
 
-  //Serial.print("seconds: ");
-  //Serial.println(second());
+//  Serial.print("seconds: ");
+//  Serial.println(second());
   
 }
 
 
 void renderTime(){
-  int hour = hourFormat12();
+  Serial.println("renderTime");
+  
+
+  
+  syslog.log(LOG_DEBUG, "renderTime");
+  int _hour = hour();
   int minutes = minute();
 
-  int relevantHour = minutes < 20 ? hour : hour+1;
+  int relevantHour = minutes < 20 ? _hour : _hour+1;
 
-  if(relevantHour > 12){
+  while(relevantHour > 12){
     relevantHour -= 12;
   }
 
   renderSpecificTime(relevantHour, minutes);
-}
-
-int currentDemoHour = 0;
-void runDemo(){
-  currentDemoHour = (currentDemoHour + 1) % 12; 
-  renderSpecificTime(currentDemoHour + 1,0);
+  
+//  Serial.println("renderTime done");
 }
 
 void callback(byte* payload, unsigned int length) {
@@ -308,19 +172,32 @@ void callback(byte* payload, unsigned int length) {
 
   switch(payload[0]){
       case 'b':
-      brightness = payload[1];
-      brightness = 255.0f;
+      screen->setBrightness(payload[1] * 1.0f);
+//      brightness = 255.0f;
       break;
 
       case 's':
-      hue_cycle_in_seconds = payload[1];
+      screen->setHueCycleInSeconds(payload[1] * 1.0f);
       break;
 
       case 'r':
-      for(int i=0; i < pixels.size(); i++){
-        AnimatedPixel * pixel = pixels[i];
-        pixel->setRainbow();
-      }
+      screen->rainbow();
+      break;
+
+      case 'S':
+      screen->synchronize();
+      break;
+      
+      case 'R':
+      screen->randomize();
+      break;
+
+      case 'J':
+      screen->jitterize();
+      break;
+
+      case 'G':
+      screen->gradientize();
       break;
   }
 
@@ -332,57 +209,69 @@ void setup() {
     randomSeed(analogRead(0));
 
     Serial.begin(115200);
+    for(int i=0; i<1; i++){
+      Serial.println("Hello world.");
+      delay(250);
+    }
     
-    LEDS.addLeds<NEOPIXEL,DATA_PIN>(leds,NUM_LEDS);
+//    addFunction(animatedPixelTick, 1);
+//    addFunction(renderAnimatedPixels, 10);
     
-    FastLED.clear();
 
-    LEDS.setBrightness(50);
-    FastLED.show();
+    addFunction(screenTick, 5);
 
-    //initRainbow();
-    //addFunction(rainbowTick, 1);
-    
-    //addFunction(timeTick, 1000);
-    //addFunction(secondsPulse, 4000);
-
-    initAnimatedPixels();
-    
-    addFunction(animatedPixelTick, 1);
-    addFunction(renderAnimatedPixels, 10);
-
-    //addFunction(runDemo, 5000);
     
     addFunction(renderTime, 1000);
-    
-    startWiFi();
-    doOta();
 
-    setupNtp();
-    return;
+    addFunction(Time_loop, 1000);
+
+    startWiFi();
+    Serial.println("OTA doing");
+    
+    OTA_setup();
+    
+    Serial.println("OTA done");
+
+    Time_setup();
+    
     MQTT_init("wordclock", callback);
-    Serial.println("init MQTT");
+    Serial.println("MQTT_init done");
     
     MQTT_publish("Hello Wordclock!");
     Serial.println("MQTT message sent");
+
+
     
+    ArduinoOTA.onStart([]() {
+      screen->clear();
+      screen->on(0);
+      screen->render();
+    });
+
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      
+      float complete = (float)progress / (float)total;
+      uint8_t pos = complete * 94.0f;
+      if(pos > 93){
+        pos = 93;
+      }
+      
+      screen->on(pos);
+      screen->tick();
+      
+      Serial.printf("OTA Progress: %u%%\r", complete * 100.0f);
+    });
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  Serial.println("Looping...");
+
   OTA_loop();
   MQTT_loop();
   
-  runFunctions();
+  Scheduler_loop();
 
 }
-
-
-
-unsigned int localPort = 8888;
-
-WiFiUDP     Udp;
 
 void startWiFi(){
   
@@ -394,40 +283,5 @@ void startWiFi(){
     Serial.println("Connected!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
-    Serial.println("Starting UDP");
-    Udp.begin(localPort);
 }
-
-
-
-// Check if Daylight saving time (DST) applies
-// Northern Hemisphere - +1 hour between March and October
-bool isDST(int d, int m, int y){
-    bool dst = false;
-    dst = (m > 3 && m < 10); // October-March
-
-    if (m == 3){
-        // Last sunday of March
-        dst = (d >= ((31 - (5 * y /4 + 4) % 7)));
-    }else if (m == 10){
-        // Last sunday of October
-        dst = (d < ((31 - (5 * y /4 + 1) % 7)));
-    }
-
-    return dst;
-}
-
-bool isDSTSwitchDay(int d, int m, int y){
-    bool dst = false;
-    if (m == 3){
-        // Last sunday of March
-        dst = (d == ((31 - (5 * y /4 + 4) % 7)));
-    }else if (m == 10){
-        // Last sunday of October
-        dst = (d == ((31 - (5 * y /4 + 1) % 7)));
-    }
-    return dst;
-}
-
-
 
