@@ -11,6 +11,8 @@
 
 #include <TimeLib.h>
 
+#include <EEPROM.h>
+
 
 #define DEBUG_SCHEDULER 0
 
@@ -20,11 +22,14 @@
 #include "AnimatedPixels.h"
 
 
+enum StoredBytes {
+  Brightness
+};
 
 WiFiUDP udpClient;
 Syslog syslog(udpClient, "192.168.1.1", 514, "wordclock", "main", LOG_KERN);
 
-AnimatedPixels * screen = new AnimatedPixels(NUM_LEDS);
+AnimatedPixels * screen;
 
 void screenTick(){
   screen->tick();
@@ -172,6 +177,8 @@ void callback(byte* payload, unsigned int length) {
 
   switch(payload[0]){
       case 'b':
+      EEPROM.write(StoredBytes::Brightness, payload[1]);
+      EEPROM.commit();
       screen->setBrightness(payload[1] * 1.0f);
 //      brightness = 255.0f;
       break;
@@ -208,39 +215,33 @@ void setup() {
 
     randomSeed(analogRead(0));
 
+    
     Serial.begin(115200);
-    for(int i=0; i<1; i++){
-      Serial.println("Hello world.");
-      delay(250);
-    }
-    
-//    addFunction(animatedPixelTick, 1);
-//    addFunction(renderAnimatedPixels, 10);
-    
 
-    addFunction(screenTick, 5);
+    EEPROM.begin(512);
 
-    
+    byte brightness = EEPROM.read(StoredBytes::Brightness);
+
+    screen = new AnimatedPixels(NUM_LEDS);
+    screen->setBrightness(brightness);    
+
+    addFunction(screenTick, 1);
+
     addFunction(renderTime, 1000);
 
     addFunction(Time_loop, 1000);
 
     startWiFi();
-    Serial.println("OTA doing");
     
     OTA_setup();
-    
-    Serial.println("OTA done");
 
     Time_setup();
     
     MQTT_init("wordclock", callback);
     Serial.println("MQTT_init done");
     
-    MQTT_publish("Hello Wordclock!");
+    MQTT_publish("!Wordclock online!");
     Serial.println("MQTT message sent");
-
-
     
     ArduinoOTA.onStart([]() {
       screen->clear();

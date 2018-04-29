@@ -1,4 +1,3 @@
-
 #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ALLOW_INTERRUPTS 0
 
@@ -8,14 +7,6 @@
 
 #include <vector>
 
-enum ColorMode {
-  Rainbow,
-  OneRainbow,
-  Constant
-};
-
-#define COLOR_MODE ColorMode::Rainbow
-#define CONSTANT_COLOR 0x40E0D0 //turquoise
 
 class AnimatedPixels {
 
@@ -95,7 +86,7 @@ class AnimatedPixels {
         
       }
     
-      this->render();
+//      this->render();
     
     }
     
