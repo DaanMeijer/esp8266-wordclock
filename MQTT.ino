@@ -6,33 +6,36 @@ PubSubClient client(espClient);
 
 char * topic;
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
+void connect() {
+  
+  Serial.print("Attempting MQTT connection...");
+  // Create a random client ID
+  String clientId = "ESP8266Client-";
+  clientId += String(random(0xffff), HEX);
+  // Attempt to connect
+  if (client.connect(clientId.c_str())) {
+    Serial.println("connected");
 
-      // ... and resubscribe
-      if(topic != NULL){
-        client.subscribe(topic);
-      }
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+    // ... and resubscribe
+    if(topic != NULL){
+      client.subscribe(topic);
     }
+  } else {
+    Serial.print("failed, rc=");
+    Serial.println(client.state());
+
   }
 }
 
 const char* mqtt_server = "192.168.1.1";
 
+
+void MQTT_publish(String str){
+  char * buff = new char[str.length() + 1];
+  str.toCharArray(buff, str.length() + 1);
+  MQTT_publish(buff);
+  delete buff;
+}
 
 void MQTT_publish(const char * msg){
   client.publish(topic, msg);
@@ -71,13 +74,28 @@ void MQTT_init(const char * _topic, void (*_pCallback)(byte *, unsigned int)){
 
   pCallback = _pCallback;
 
-  reconnect();
+  connect();
 }
 
 void MQTT_loop(){
-//  Serial.println("MQTT_loop");
-  if (!client.connected()) {
-    reconnect();
+
+  #if DEBUG_GENERAL
+  Serial.println("MQTT_loop()");
+  #endif
+  int reconnectCounter = 0;
+  while(!client.connected() && reconnectCounter < 3) {
+    Serial.println("MQTT: connecting...");
+    reconnectCounter++;
+    connect();
+
+    if(client.connected()){
+      Serial.println("MQTT: succes!");
+      break;
+    }else{
+      Serial.println("MQTT: connection failed, try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
   }
   client.loop();
 }

@@ -32,6 +32,9 @@ void OTA_setup(){
 }
 
 void OTA_loop(){
+  #if DEBUG_GENERAL
+  Serial.println("OTA_loop()");
+  #endif
   ArduinoOTA.handle();
 }
 

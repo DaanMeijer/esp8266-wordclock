@@ -92,7 +92,7 @@ class AnimatedPixels {
     
     void render(){
 //      Serial.printf("AnimatedPixels brightness: %f\n", this->brightness);   
-      FastLED.clear();
+      //FastLED.clear();
 //      Serial.println("renderAnimatedPixels");
 //      pixels[3]->debug();
 //      Serial.println("brightness: ");

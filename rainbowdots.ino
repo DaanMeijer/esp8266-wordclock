@@ -14,6 +14,7 @@
 #include <EEPROM.h>
 
 
+#define DEBUG_GENERAL 0
 #define DEBUG_SCHEDULER 0
 
 #define SCREEN_DATA_PIN  D1 // D2 Pin on Wemos mini
@@ -21,22 +22,37 @@
 
 #include "AnimatedPixels.h"
 
-
-enum StoredBytes {
-  Brightness
-};
+struct {
+  time_t utc = 0;
+  byte brightness = 255;
+  
+} persistent;
 
 WiFiUDP udpClient;
 Syslog syslog(udpClient, "192.168.1.1", 514, "wordclock", "main", LOG_KERN);
 
 AnimatedPixels * screen;
 
+void savePersistent(){
+  Serial.printf("Saving persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
+  EEPROM.put(0, persistent);
+}
+
+void loadPersistent(){
+  EEPROM.get(0, persistent);
+  Serial.printf("Loading persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
+  
+}
+
 void screenTick(){
+  #if DEBUG_GENERAL
+  Serial.println("screenTick()");
+  #endif
   screen->tick();
 }
 
 std::vector<std::vector<int>> hourVectors = {
-  {}, //0, skip het
+  {51,52,53,54,55,56}, //twaalf
   {66,75,86}, //een
   {74,75,76,77}, //twee
   {41,42,43,44}, //drie
@@ -76,6 +92,7 @@ std::vector<std::vector<int>> minuteVectors = {
 
 void renderSpecificTime(int relevantHour, int minutes){
   
+    Serial.println("renderSpecificTime()");
 
 //  Serial.print("Current time: ");
 //  Serial.print(relevantHour);
@@ -148,9 +165,9 @@ void renderSpecificTime(int relevantHour, int minutes){
 
 
 void renderTime(){
-  Serial.println("renderTime");
+  Serial.println("renderTime()");
   
-
+  
   
   syslog.log(LOG_DEBUG, "renderTime");
   int _hour = hour();
@@ -177,9 +194,9 @@ void callback(byte* payload, unsigned int length) {
 
   switch(payload[0]){
       case 'b':
-      EEPROM.write(StoredBytes::Brightness, payload[1]);
-      EEPROM.commit();
-      screen->setBrightness(payload[1] * 1.0f);
+      persistent.brightness = payload[1];
+      savePersistent();
+      screen->setBrightness(persistent.brightness * 1.0f);
 //      brightness = 255.0f;
       break;
 
@@ -220,12 +237,17 @@ void setup() {
 
     EEPROM.begin(512);
 
-    byte brightness = EEPROM.read(StoredBytes::Brightness);
+    delay(10);
+
+    loadPersistent();
+
+    Serial.printf("setting time to %d\n", persistent.utc);
+    setTime(persistent.utc);
 
     screen = new AnimatedPixels(NUM_LEDS);
-    screen->setBrightness(brightness);    
+    screen->setBrightness(persistent.brightness);    
 
-    addFunction(screenTick, 1);
+    addFunction(screenTick, 25);
 
     addFunction(renderTime, 1000);
 
@@ -233,15 +255,13 @@ void setup() {
 
     startWiFi();
     
+    MQTT_init("wordclock", callback);
+    Serial.println("MQTT_init done");
+    
     OTA_setup();
 
     Time_setup();
     
-    MQTT_init("wordclock", callback);
-    Serial.println("MQTT_init done");
-    
-    MQTT_publish("!Wordclock online!");
-    Serial.println("MQTT message sent");
     
     ArduinoOTA.onStart([]() {
       screen->clear();
@@ -262,15 +282,28 @@ void setup() {
       
       Serial.printf("OTA Progress: %u%%\r", complete * 100.0f);
     });
+    
+    ESP.wdtEnable(1000);
+    
+    MQTT_publish("!Wordclock online!");
+    Serial.println("MQTT message sent");
+    
 }
 
 // the loop function runs over and over again forever
 void loop() {
+  #if DEBUG_GENERAL
+  Serial.println("loop()");
+  #endif
+  
+  ESP.wdtFeed();
 
+  
   OTA_loop();
   MQTT_loop();
   
   Scheduler_loop();
+
 
 }
 

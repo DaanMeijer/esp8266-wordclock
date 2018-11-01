@@ -22,6 +22,10 @@ void addFunction(void (*function)(), int intervalInMs){
 }
 
 void Scheduler_loop(){
+
+  #if DEBUG_GENERAL
+  Serial.println("Scheduler_loop()");
+  #endif
   for(int i=0; i<intervalFunctions.size(); i++){
     intervalFunction *func = intervalFunctions[i];
 
