@@ -29,7 +29,7 @@ struct {
 } persistent;
 
 WiFiUDP udpClient;
-Syslog syslog(udpClient, "192.168.1.1", 514, "wordclock", "main", LOG_KERN);
+Syslog syslog(udpClient, "10.205.1.1", 514, "wordclock", "main", LOG_KERN);
 
 AnimatedPixels * screen;
 
@@ -186,11 +186,11 @@ void renderTime(){
 
 void callback(byte* payload, unsigned int length) {
 
-//  Serial.print("Payload: ");
-//  for(int a=0; a<length; a++){
-//    Serial.print((char)payload[a]);
-//  }
-//  Serial.println();
+  Serial.print("Payload: ");
+  for(int a=0; a<length; a++){
+    Serial.print((char)payload[a]);
+  }
+  Serial.println();
 
   switch(payload[0]){
       case 'b':
@@ -245,7 +245,7 @@ void setup() {
     setTime(persistent.utc);
 
     screen = new AnimatedPixels(NUM_LEDS);
-    screen->setBrightness(persistent.brightness);    
+    screen->setBrightness(persistent.brightness * 1.0f);    
 
     addFunction(screenTick, 25);
 
@@ -254,8 +254,19 @@ void setup() {
     addFunction(Time_loop, 1000);
 
     startWiFi();
+
+    MQTT_init();
+    MQTT_subscribe("cmnd/WordClock/Dimmer", [](byte* payload, unsigned int length){
+      auto input = new String((char *)payload);
+      Serial.println(input->c_str());
+      auto brightness = input->toInt();
+      delete input;
+      screen->setBrightness(brightness * 1.0f);
+    });
     
-    MQTT_init("wordclock", callback);
+    MQTT_subscribe("cmnd/WordClock/Render", [](byte* payload, unsigned int length){
+      renderTime();
+    });
     Serial.println("MQTT_init done");
     
     OTA_setup();
@@ -266,6 +277,7 @@ void setup() {
     ArduinoOTA.onStart([]() {
       screen->clear();
       screen->on(0);
+      screen->setBrightness(255.0f);
       screen->render();
     });
 
@@ -285,7 +297,7 @@ void setup() {
     
     ESP.wdtEnable(1000);
     
-    MQTT_publish("!Wordclock online!");
+    MQTT_publish("wordclock", "!Wordclock online!");
     Serial.println("MQTT message sent");
     
 }
@@ -318,4 +330,3 @@ void startWiFi(){
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
 }
-

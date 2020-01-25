@@ -17,7 +17,7 @@ Timezone CE(CEST, CET);
 
 time_t syncProvider(){
   
-  MQTT_publish("syncProvider()");
+  MQTT_publish("wordclock", "syncProvider()");
   Serial.print("syncProvider: ");
   Time_loop();
   
@@ -36,14 +36,14 @@ void Time_setup(){
   timeClient.begin();
   timeClient.forceUpdate();
 
-  MQTT_publish(String(timeClient.getEpochTime()));
+  MQTT_publish("wordclock", String(timeClient.getEpochTime()));
   setTime(timeClient.getEpochTime());
   
   setSyncProvider(syncProvider);
   //Set Sync Intervals
   setSyncInterval(300);
   
-  MQTT_publish("sync provider set");
+  MQTT_publish("wordclock", "sync provider set");
 
   Time_loop();
 }

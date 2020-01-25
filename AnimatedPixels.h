@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "MQTT.h"
 
 class AnimatedPixels {
 
@@ -45,14 +46,24 @@ class AnimatedPixels {
       Serial.printf("setBrightness(%f)\n", brightness);
       this->brightness = brightness;
 
-      
-      
+      auto adjusted = 0;
       for(int i=0; i < pixels.size(); i++){
         if(pixels[i]->targetBrightness > 0.1f){
+          adjusted++;
           pixels[i]->setTargetBrightness(brightness);
         }
       }
 
+      Serial.printf("adjusted: %d", adjusted);
+
+      this->showSettings();
+
+    }
+
+    void showSettings(){
+      char buff[255];
+      sprintf(buff, "{\"POWER\":\"ON\",\"Dimmer\":%f}", this->brightness); 
+      MQTT_publish("stat/WordClock/RESULT", buff);
     }
       
     void rainbow(){
