@@ -91,8 +91,9 @@ std::vector<std::vector<int>> minuteVectors = {
 
 
 void renderSpecificTime(int relevantHour, int minutes){
-  
-    Serial.println("renderSpecificTime()");
+
+  screen->showSettings();
+  Serial.println("renderSpecificTime()");
 
 //  Serial.print("Current time: ");
 //  Serial.print(relevantHour);
@@ -247,7 +248,7 @@ void setup() {
     screen = new AnimatedPixels(NUM_LEDS);
     screen->setBrightness(persistent.brightness * 1.0f);    
 
-    addFunction(screenTick, 25);
+    addFunction(screenTick, 40);
 
     addFunction(renderTime, 1000);
 
@@ -263,6 +264,35 @@ void setup() {
       delete input;
       screen->setBrightness(brightness * 1.0f);
     });
+
+    MQTT_subscribe("cmnd/WordClock/Mode", [](byte* payload, unsigned int length){
+      char buff[length + 1];
+      strncpy(buff, (char*)payload, length);
+      buff[length] = 0;
+      
+      auto input = new String(buff);
+      input->toLowerCase();
+
+      syslog.log(LOG_DEBUG, "Have input");
+      syslog.log(LOG_INFO, input->c_str());
+      
+      if(input->equals("rainbow")){
+        screen->rainbow();
+      }else if(input->equals("random")){
+        screen->randomize();
+      }else if(input->equals("jitter")){
+        screen->jitterize();
+      }else if(input->equals("synchronous")){
+        screen->synchronize();
+      }else if(input->equals("mono")){
+        screen->mono();
+      }else if(input->equals("gradient")){
+        screen->gradientize();
+      }
+      
+      delete input;
+    });
+
     
     MQTT_subscribe("cmnd/WordClock/Render", [](byte* payload, unsigned int length){
       renderTime();
@@ -275,9 +305,9 @@ void setup() {
     
     
     ArduinoOTA.onStart([]() {
-      screen->clear();
-      screen->on(0);
       screen->setBrightness(255.0f);
+      screen->clear();
+      screen->on(0, true);
       screen->render();
     });
 
@@ -289,7 +319,7 @@ void setup() {
         pos = 93;
       }
       
-      screen->on(pos);
+      screen->on(pos, true);
       screen->tick();
       
       Serial.printf("OTA Progress: %u%%\r", complete * 100.0f);

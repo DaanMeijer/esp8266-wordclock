@@ -69,7 +69,9 @@ class AnimatedPixel {
       
       switch(this->mode){
         case rainbow:
-          this->hue += (timeFactor * (256.0f/hue_cycle_in_seconds));
+          if(hue_cycle_in_seconds != 0){
+            this->hue += (timeFactor * (256.0f/hue_cycle_in_seconds));
+          }
           break;
 
         case fade:
