@@ -4,6 +4,10 @@
 class AnimatedPixel {
 
   public:
+    enum ColorMode{
+      COLOR_RGB,
+      COLOR_HSV
+    };
     
     enum Mode {
       rainbow,
@@ -19,6 +23,7 @@ class AnimatedPixel {
     float saturation = 0;
     float targetBrightness = 0;
 
+    ColorMode colorMode = COLOR_HSV;
     
     float hue_cycle_in_seconds = 120.0f;
 
@@ -54,14 +59,8 @@ class AnimatedPixel {
     }
 
     byte getBrightness(){
-//      byte result = 1*this->brightness;
-      
       byte result = map(this->brightness, 0, 255, 0, 255);
-      
-//      Serial.printf("getBrightness(%f): %d\n", this->brightness, result);
       return result;
-      return 128;
-      return 1 * this->brightness; //map(this->brightness, 0, 255, 0, 255);
     }
     
     void tick(float timeFactor){
@@ -123,4 +122,3 @@ class AnimatedPixel {
     }
 
 };
-

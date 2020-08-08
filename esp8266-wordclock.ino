@@ -90,10 +90,11 @@ std::vector<std::vector<int>> minuteVectors = {
 
 
 
-void renderSpecificTime(int relevantHour, int minutes){
-
-  screen->showSettings();
-  Serial.println("renderSpecificTime()");
+void renderSpecificTime(int relevantHour, int minutes, int seconds){
+  if(seconds == 0){
+    screen->showSettings();
+  }
+//  Serial.println("renderSpecificTime()");
 
 //  Serial.print("Current time: ");
 //  Serial.print(relevantHour);
@@ -166,7 +167,7 @@ void renderSpecificTime(int relevantHour, int minutes){
 
 
 void renderTime(){
-  Serial.println("renderTime()");
+//  Serial.println("renderTime()");
   
   
   
@@ -180,7 +181,7 @@ void renderTime(){
     relevantHour -= 12;
   }
 
-  renderSpecificTime(relevantHour, minutes);
+  renderSpecificTime(relevantHour, minutes, second());
   
 //  Serial.println("renderTime done");
 }
@@ -291,6 +292,21 @@ void setup() {
       }
       
       delete input;
+    });
+
+    MQTT_subscribe("cmnd/WordClock/Color", [](byte* payload, unsigned int length){
+      char buff[length + 1];
+      strncpy(buff, (char*)payload, length);
+      buff[length] = 0;
+ 
+
+      long rgb = strtol(buff, NULL, 16);
+      byte red = rgb >> 16 ;
+      byte green = (rgb & 0x00ff00) >> 8;
+      byte blue = (rgb & 0x0000ff);
+      
+      screen->setRGB(red, green, blue);
+      
     });
 
     
