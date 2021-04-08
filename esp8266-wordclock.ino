@@ -1,6 +1,4 @@
 
-#include <Syslog.h>
-
 #include <vector>
 
 #include <ESP8266WiFi.h>
@@ -18,7 +16,7 @@
 #define DEBUG_SCHEDULER 0
 
 #define SCREEN_DATA_PIN  D1 // D2 Pin on Wemos mini
-#define NUM_LEDS 94
+#define NUM_LEDS 100
 
 #include "AnimatedPixels.h"
 
@@ -27,9 +25,6 @@ struct {
   byte brightness = 255;
   
 } persistent;
-
-WiFiUDP udpClient;
-Syslog syslog(udpClient, "10.205.1.1", 514, "wordclock", "main", LOG_KERN);
 
 AnimatedPixels * screen;
 
@@ -48,43 +43,57 @@ void screenTick(){
   #if DEBUG_GENERAL
   Serial.println("screenTick()");
   #endif
+    
+  int prefFrame = millis();
+  
   screen->tick();
+  
+  int millisPassed = millis() - prefFrame;
+  Serial.printf("Millis for a frame: %d\r\n", millisPassed);
 }
 
 std::vector<std::vector<int>> hourVectors = {
-  {51,52,53,54,55,56}, //twaalf
-  {66,75,86}, //een
-  {74,75,76,77}, //twee
-  {41,42,43,44}, //drie
-  {60,59,58,57}, //vier
-  {82,83,84,85}, //vijf
-  {71,72,73}, //zes
-  {61,62,63,64,65}, //zeven
-  {77,78,79,80}, //acht
-  {65,66,67,68,69}, //negen
-  {47,48,49,50}, //tien
-  {44,45,46}, //elf
-  {51,52,53,54,55,56}, //twaalf
+  {43,58,63,78,83,98}, //twaalf
+  {24,23,22}, //een
+  {35,46,55,66}, //twee
+  { 5,16,25,36}, //drie
+  { 3,18,23,38}, //vier
+  {39,42,59,62}, //vijf
+  {75,86,95}, //zes
+  {17,24,37,44,57}, //zeven
+  { 6,15,26,35}, //acht
+  {57,64,77,84,97}, //negen
+  {65,76,85,96}, //tien
+  {36,45,56}, //elf
+  {43,58,63,78,83,98}, //twaalf
 };
 
 std::vector<std::vector<int>> minuteVectors = {
   
-  {88,89,90}, //uur
-  {19,18,17,16,  27,28,29,30}, //vijf over
-  {15,14,13,12,  27,28,29,30}, //tien over
+  {79,82,99}, //uur
+  {12,29,32,49,  68,73,88,93}, //vijf over
+  {52,69,72,89,  68,73,88,93}, //tien over
   
-  {21,22,23,24,25,  27,28,29,30}, //kwart over
-  {15,14,13,12,  40,39,38,37,  35,34,33,32}, //tien voor half
-  {19,18,17,16,  40,39,38,37,  35,34,33,32}, //vijf voor half
+  {8,13,28,33,48,  68,73,88,93}, //kwart over
+  {52,69,72,89,  14,27,34,47,  54,67,74,87}, //tien voor half
+  {12,29,32,49,  14,27,34,47,  54,67,74,87}, //vijf voor half
   
-  {35,34,33,32}, //half
-  {19,18,17,16,  27,28,29,30,  35,34,33,32}, //vijf over half
-  {15,14,13,12,  27,28,29,30,  35,34,33,32}, //tien over half
+  {54,67,74,87}, //half
+  {12,29,32,49,  68,73,88,93,  54,67,74,87}, //vijf over half
+  {52,69,72,89,  68,73,88,93,  54,67,74,87}, //tien over half
   
-  {21,22,23,24,25,  40,39,38,37}, //kwart voor
-  {15,14,13,12,  40,39,38,37}, //tien voor
-  {19,18,17,16,  40,39,38,37}, //vijf voor
+  {8,13,28,33,48,  14,27,34,47}, //kwart voor
+  {52,69,72,89,    14,27,34,47}, //tien voor
+  {12,29,32,49,    14,27,34,47}, //vijf voor
   
+};
+
+std::vector<std::vector<int>> looseMinuteVectors = {
+  {},
+  {40},
+  {40,41},
+  {40,41,60},
+  {40,41,60,61},
 };
 
 
@@ -109,7 +118,7 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
   /**/
   
   std::vector<int> staticLeds = {
-    1,2,3,  5,6,  8,9
+    10,11,30,  50,51,  71,90   //het is nu
   };
   
   /*/
@@ -153,15 +162,13 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
   }
 //  Serial.println("set the minute leds");
 
-  for(int i=1; i<=minutes%5; i++){
-    int pos = 94 - i;
-//    Serial.print("setting dot ");
-//    Serial.println(pos);
+  int looseMinutes = minutes%5;
+  std::vector<int> looseMinuteLeds = looseMinuteVectors[looseMinutes];
+
+  for(int i=0; i<looseMinuteLeds.size(); i++){
+    int pos = looseMinuteLeds[i] - 1;
     screen->on(pos);
   }
-
-//  Serial.print("seconds: ");
-//  Serial.println(second());
   
 }
 
@@ -169,9 +176,6 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
 void renderTime(){
 //  Serial.println("renderTime()");
   
-  
-  
-  syslog.log(LOG_DEBUG, "renderTime");
   int _hour = hour();
   int minutes = minute();
 
@@ -249,7 +253,7 @@ void setup() {
     screen = new AnimatedPixels(NUM_LEDS);
     screen->setBrightness(persistent.brightness * 1.0f);    
 
-    addFunction(screenTick, 40);
+    addFunction(screenTick, 20);
 
     addFunction(renderTime, 1000);
 
@@ -273,9 +277,6 @@ void setup() {
       
       auto input = new String(buff);
       input->toLowerCase();
-
-      syslog.log(LOG_DEBUG, "Have input");
-      syslog.log(LOG_INFO, input->c_str());
       
       if(input->equals("rainbow")){
         screen->rainbow();
@@ -321,7 +322,7 @@ void setup() {
     
     
     ArduinoOTA.onStart([]() {
-      screen->setBrightness(255.0f);
+      screen->setBrightness(64.0f);
       screen->clear();
       screen->on(0, true);
       screen->render();
@@ -330,15 +331,18 @@ void setup() {
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
       
       float complete = (float)progress / (float)total;
-      uint8_t pos = complete * 94.0f;
-      if(pos > 93){
-        pos = 93;
+      uint8_t pos = complete * NUM_LEDS * 1.0f;
+      if(pos > NUM_LEDS - 1){
+        pos = NUM_LEDS - 1;
       }
       
       screen->on(pos, true);
       screen->tick();
       
-      Serial.printf("OTA Progress: %u%%\r", complete * 100.0f);
+      Serial.printf("OTA Progress: %f%%\r", complete * 100.0f);
+      
+      ESP.wdtFeed();
+
     });
     
     ESP.wdtEnable(1000);
@@ -348,8 +352,10 @@ void setup() {
     
 }
 
+
 // the loop function runs over and over again forever
 void loop() {
+
   #if DEBUG_GENERAL
   Serial.println("loop()");
   #endif
@@ -361,7 +367,6 @@ void loop() {
   MQTT_loop();
   
   Scheduler_loop();
-
 
 }
 
