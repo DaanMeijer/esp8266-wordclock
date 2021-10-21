@@ -44,8 +44,11 @@ void MQTT_publish(const char * topic, String str){
 }
 
 void MQTT_publish(const char * topic, const char * msg){
-  Serial.println("MQTT_publish");
-  client.publish(topic, msg);
+  Serial.print("MQTT_publish to: ");
+  Serial.print(topic);
+  Serial.print(" msg: ");
+  Serial.println(msg);
+  client.publish(topic, msg );
 }
 
 void (*pCallback)(byte *, unsigned int) = NULL;
@@ -71,7 +74,9 @@ void MQTT_callback(char* topic, byte * payload, unsigned int length){
   
   for (auto channel = channels->begin(); channel != channels->end(); ++channel){  
     if(channel->topic->equals(topic)){
-      channel->callback(payload, length);
+      if(channel->callback != NULL){
+        channel->callback(payload, length);  
+      }
     }
   }
 
@@ -105,7 +110,7 @@ void MQTT_loop(){
     connect();
 
     if(client.connected()){
-      Serial.println("MQTT: succes!");
+      Serial.println("MQTT: success!");
       break;
     }else{
       Serial.println("MQTT: connection failed, try again in 5 seconds");

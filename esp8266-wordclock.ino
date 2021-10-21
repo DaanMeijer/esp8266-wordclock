@@ -13,6 +13,7 @@
 
 
 #define DEBUG_GENERAL 0
+#define DEBUG_SCREEN 1
 #define DEBUG_SCHEDULER 0
 
 #define SCREEN_DATA_PIN  D1 // D2 Pin on Wemos mini
@@ -29,27 +30,34 @@ struct {
 AnimatedPixels * screen;
 
 void savePersistent(){
+  EEPROM.begin(512);
   Serial.printf("Saving persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
-  EEPROM.put(0, persistent);
+  EEPROM.put(12, persistent.brightness);
+  EEPROM.end();
 }
 
 void loadPersistent(){
-  EEPROM.get(0, persistent);
-  Serial.printf("Loading persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
-  
+  EEPROM.begin(512);
+  EEPROM.get(12, persistent.brightness);
+  Serial.printf("Loaded persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
+  EEPROM.end();
 }
 
 void screenTick(){
-  #if DEBUG_GENERAL
+  #if DEBUG_SCREEN
   Serial.println("screenTick()");
   #endif
     
+  #if DEBUG_SCREEN
   int prefFrame = millis();
+  #endif
   
   screen->tick();
   
+  #if DEBUG_SCREEN
   int millisPassed = millis() - prefFrame;
   Serial.printf("Millis for a frame: %d\r\n", millisPassed);
+  #endif
 }
 
 std::vector<std::vector<int>> hourVectors = {
@@ -105,10 +113,10 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
   }
 //  Serial.println("renderSpecificTime()");
 
-//  Serial.print("Current time: ");
-//  Serial.print(relevantHour);
-//  Serial.print(":");
-//  Serial.println(minutes);
+  Serial.print("Current time: ");
+  Serial.print(relevantHour);
+  Serial.print(":");
+  Serial.println(minutes);
 
   screen->clear();
 
@@ -149,6 +157,7 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
   
   for(int i=0; i<hourLeds.size(); i++){
     int pos = hourLeds[i] - 1;
+//    Serial.print(pos);
     screen->on(pos);
   }
 //  Serial.println("set the hour leds");
@@ -158,6 +167,7 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
 
   for(int i=0; i<minuteLeds.size(); i++){
     int pos = minuteLeds[i] - 1;
+//    Serial.print(pos);
     screen->on(pos);
   }
 //  Serial.println("set the minute leds");
@@ -167,8 +177,13 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
 
   for(int i=0; i<looseMinuteLeds.size(); i++){
     int pos = looseMinuteLeds[i] - 1;
+//    Serial.print(pos);
     screen->on(pos);
   }
+//  Serial.println("set the loose minute leds");
+
+
+//  screen->debug();
   
 }
 
@@ -241,17 +256,18 @@ void setup() {
     
     Serial.begin(115200);
 
-    EEPROM.begin(512);
 
     delay(10);
 
     loadPersistent();
 
-    Serial.printf("setting time to %d\n", persistent.utc);
-    setTime(persistent.utc);
+    persistent.brightness = 128;
 
-    screen = new AnimatedPixels(NUM_LEDS);
-    screen->setBrightness(persistent.brightness * 1.0f);    
+    //Serial.printf("setting time to %d\n", persistent.utc);
+    //setTime(persistent.utc);
+    Serial.printf("Setting brightness to %d\n", persistent.brightness);
+
+    screen = new AnimatedPixels(NUM_LEDS, persistent.brightness * 1.0f);
 
     addFunction(screenTick, 20);
 
@@ -263,10 +279,15 @@ void setup() {
 
     MQTT_init();
     MQTT_subscribe("cmnd/WordClock/Dimmer", [](byte* payload, unsigned int length){
+      
       auto input = new String((char *)payload);
       Serial.println(input->c_str());
       auto brightness = input->toInt();
       delete input;
+      
+      persistent.brightness = brightness;
+      savePersistent();
+      
       screen->setBrightness(brightness * 1.0f);
     });
 
@@ -302,9 +323,9 @@ void setup() {
  
 
       long rgb = strtol(buff, NULL, 16);
-      byte red = rgb >> 16 ;
+      byte red =   (rgb & 0xff0000) >> 16 ;
       byte green = (rgb & 0x00ff00) >> 8;
-      byte blue = (rgb & 0x0000ff);
+      byte blue =  (rgb & 0x0000ff) >> 0;
       
       screen->setRGB(red, green, blue);
       
@@ -349,6 +370,8 @@ void setup() {
     
     MQTT_publish("wordclock", "!Wordclock online!");
     Serial.println("MQTT message sent");
+
+    screen->clear(true);
     
 }
 

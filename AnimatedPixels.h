@@ -44,8 +44,9 @@ class AnimatedPixels {
 //      "Jitter" 
 //    };
 
-    AnimatedPixels(int count) {
+    AnimatedPixels(int count, float brightness) {
       this->count = count;
+      this->brightness = brightness;
 
       this->leds = new CRGB[count];
 
@@ -142,6 +143,14 @@ class AnimatedPixels {
       FastLED.show();
       
     }
+    
+    void debug(){
+      Serial.printf("Screen:\nbrightness: %f\n", this->brightness);
+      //pixel 9 is always on (H)
+      //pixels[9]->debug();
+
+      pixels[0]->debug();
+    }
 
 
     void tick() {
@@ -160,8 +169,14 @@ class AnimatedPixels {
     }
 
     void clear() {
+      this->clear(false);
+    }
+    
+    void clear(bool force) {
+      
+//      Serial.println(force ? "Clearing screen forced" : "Clearing screen");
       for (int i = 0; i < this->count; i++) {
-        pixels[i]->clear();
+        pixels[i]->clear(force);
       }
     }
 

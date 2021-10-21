@@ -8,12 +8,18 @@
 
 WiFiUDP ntpUdpClient;
 
-NTPClient timeClient(ntpUdpClient, "europe.pool.ntp.org", 3600, 60000);
+NTPClient timeClient(ntpUdpClient, "europe.pool.ntp.org");
 
-TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 60};     //Central European Time (Frankfurt, Paris)
-TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 0};      //Central European Time (Frankfurt, Paris)
+TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European Time (Frankfurt, Paris)
+TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};      //Central European Time (Frankfurt, Paris)
 Timezone CE(CEST, CET);
 
+void print_time(time_t tt) {
+    char buf[80];
+    struct tm* st = localtime(&tt);
+    strftime(buf, 80, "%c", st);
+    Serial.printf("%s", buf);
+}
 
 time_t syncProvider(){
   
@@ -22,8 +28,12 @@ time_t syncProvider(){
   
   time_t utc = timeClient.getEpochTime();
   time_t local = CE.toLocal(utc);
-//  Serial.printf("utc: %d, local: %d\n", utc, local);
-
+  Serial.print("utc: ");
+  print_time(utc);
+  Serial.print(", local: ");
+  print_time(local);
+  Serial.println();
+  
   persistent.utc = utc;
   savePersistent();
 
@@ -51,4 +61,3 @@ void Time_loop(){
   timeClient.update();
 
 }
-
