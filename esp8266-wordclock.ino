@@ -21,27 +21,9 @@
 
 #include "AnimatedPixels.h"
 
-struct {
-  time_t utc = 0;
-  byte brightness = 255;
-  
-} persistent;
 
 AnimatedPixels * screen;
 
-void savePersistent(){
-  EEPROM.begin(512);
-  Serial.printf("Saving persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
-  EEPROM.put(12, persistent.brightness);
-  EEPROM.end();
-}
-
-void loadPersistent(){
-  EEPROM.begin(512);
-  EEPROM.get(12, persistent.brightness);
-  Serial.printf("Loaded persistent: brightness (%d), utc (%d)\n", persistent.brightness, persistent.utc);
-  EEPROM.end();
-}
 
 void screenTick(){
   #if DEBUG_SCREEN
@@ -58,151 +40,6 @@ void screenTick(){
   int millisPassed = millis() - prefFrame;
   Serial.printf("Millis for a frame: %d\r\n", millisPassed);
   #endif
-}
-
-std::vector<std::vector<int>> hourVectors = {
-  {43,58,63,78,83,98}, //twaalf
-  {24,23,22}, //een
-  {35,46,55,66}, //twee
-  { 5,16,25,36}, //drie
-  { 3,18,23,38}, //vier
-  {39,42,59,62}, //vijf
-  {75,86,95}, //zes
-  {17,24,37,44,57}, //zeven
-  { 6,15,26,35}, //acht
-  {57,64,77,84,97}, //negen
-  {65,76,85,96}, //tien
-  {36,45,56}, //elf
-  {43,58,63,78,83,98}, //twaalf
-};
-
-std::vector<std::vector<int>> minuteVectors = {
-  
-  {79,82,99}, //uur
-  {12,29,32,49,  68,73,88,93}, //vijf over
-  {52,69,72,89,  68,73,88,93}, //tien over
-  
-  {8,13,28,33,48,  68,73,88,93}, //kwart over
-  {52,69,72,89,  14,27,34,47,  54,67,74,87}, //tien voor half
-  {12,29,32,49,  14,27,34,47,  54,67,74,87}, //vijf voor half
-  
-  {54,67,74,87}, //half
-  {12,29,32,49,  68,73,88,93,  54,67,74,87}, //vijf over half
-  {52,69,72,89,  68,73,88,93,  54,67,74,87}, //tien over half
-  
-  {8,13,28,33,48,  14,27,34,47}, //kwart voor
-  {52,69,72,89,    14,27,34,47}, //tien voor
-  {12,29,32,49,    14,27,34,47}, //vijf voor
-  
-};
-
-std::vector<std::vector<int>> looseMinuteVectors = {
-  {},
-  {40},
-  {40,41},
-  {40,41,60},
-  {40,41,60,61},
-};
-
-
-
-
-void renderSpecificTime(int relevantHour, int minutes, int seconds){
-  if(seconds == 0){
-    screen->showSettings();
-  }
-//  Serial.println("renderSpecificTime()");
-
-  Serial.print("Current time: ");
-  Serial.print(relevantHour);
-  Serial.print(":");
-  Serial.println(minutes);
-
-  screen->clear();
-
-  
-//  Serial.println("cleared the leds");
-
-  /**/
-  
-  std::vector<int> staticLeds = {
-    10,11,30,  50,51,  71,90   //het is nu
-  };
-  
-  /*/
-  
-  std::vector<int> staticLeds = {
-    1,2,3, 4, 5,6, 7, 8,9, 10,
-    11,12,13, 14, 15,16, 17, 18,19, 20,
-    21,22,23, 24, 25,26, 27, 28,29, 30,
-    31,32,33, 34, 35,36, 37, 38,39, 40,
-    41,42,43, 44, 45,46, 47, 48,49, 50,
-    51,52,53, 54, 55,56, 57, 58,59, 60,
-    61,62,63, 64, 65,66, 67, 68,69, 70,
-    71,72,73, 74, 75,76, 77, 78,79, 80,
-    81,82,83, 84, 85,86, 87, 88,89, 90,
-    
-    91,92,93, 94
-  };
-
-  /**/
-  
-  for(int i=0; i<staticLeds.size(); i++){
-    int pos = staticLeds[i] - 1;
-    screen->on(pos);
-  }
-
-
-  std::vector<int> hourLeds = hourVectors[relevantHour];
-  
-  for(int i=0; i<hourLeds.size(); i++){
-    int pos = hourLeds[i] - 1;
-//    Serial.print(pos);
-    screen->on(pos);
-  }
-//  Serial.println("set the hour leds");
-
-  int minuteIndex = minutes/5;
-  std::vector<int> minuteLeds = minuteVectors[minuteIndex];
-
-  for(int i=0; i<minuteLeds.size(); i++){
-    int pos = minuteLeds[i] - 1;
-//    Serial.print(pos);
-    screen->on(pos);
-  }
-//  Serial.println("set the minute leds");
-
-  int looseMinutes = minutes%5;
-  std::vector<int> looseMinuteLeds = looseMinuteVectors[looseMinutes];
-
-  for(int i=0; i<looseMinuteLeds.size(); i++){
-    int pos = looseMinuteLeds[i] - 1;
-//    Serial.print(pos);
-    screen->on(pos);
-  }
-//  Serial.println("set the loose minute leds");
-
-
-//  screen->debug();
-  
-}
-
-
-void renderTime(){
-//  Serial.println("renderTime()");
-  
-  int _hour = hour();
-  int minutes = minute();
-
-  int relevantHour = minutes < 20 ? _hour : _hour+1;
-
-  while(relevantHour > 12){
-    relevantHour -= 12;
-  }
-
-  renderSpecificTime(relevantHour, minutes, second());
-  
-//  Serial.println("renderTime done");
 }
 
 void callback(byte* payload, unsigned int length) {
@@ -340,33 +177,6 @@ void setup() {
     OTA_setup();
 
     Time_setup();
-    
-    
-    ArduinoOTA.onStart([]() {
-      screen->setBrightness(64.0f);
-      screen->clear();
-      screen->on(0, true);
-      screen->render();
-    });
-
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      
-      float complete = (float)progress / (float)total;
-      uint8_t pos = complete * NUM_LEDS * 1.0f;
-      if(pos > NUM_LEDS - 1){
-        pos = NUM_LEDS - 1;
-      }
-      
-      screen->on(pos, true);
-      screen->tick();
-      
-      Serial.printf("OTA Progress: %f%%\r", complete * 100.0f);
-      
-      ESP.wdtFeed();
-
-    });
-    
-    ESP.wdtEnable(1000);
     
     MQTT_publish("wordclock", "!Wordclock online!");
     Serial.println("MQTT message sent");

@@ -1,15 +1,22 @@
-#define FASTLED_ESP8266_RAW_PIN_ORDER
+// #define FASTLED_ESP8266_RAW_PIN_ORDER
 #define FASTLED_ALLOW_INTERRUPTS 0
+
+#define LED_TYPE WS2812B  // type of RGB LED's
 
 #include "FastLED.h"
 
-#include "AnimatedPixel.h"
+#include <Arduino.h>
+
+#include "Pixel.hpp"
 
 #include <vector>
 
-#include "MQTT.h"
+#include "MQTT.hpp"
 
-class AnimatedPixels {
+
+#define SCREEN_DATA_PIN  D2
+
+class Screen {
 
   public: 
     enum Mode {
@@ -21,7 +28,7 @@ class AnimatedPixels {
 
 
   private:
-    int count;
+    size_t count;
     CRGB * leds;
 
 
@@ -30,10 +37,10 @@ class AnimatedPixels {
 
     long prevTick = micros();
 
-    std::vector<AnimatedPixel*> pixels = {};
+    std::vector<Pixel*> pixels = {};
 
     Mode mode = Mode::RAINBOW;
-    
+
 
   public:
 
@@ -44,7 +51,8 @@ class AnimatedPixels {
 //      "Jitter" 
 //    };
 
-    AnimatedPixels(int count, float brightness) {
+
+    Screen(size_t count, float brightness) {
       this->count = count;
       this->brightness = brightness;
 
@@ -56,7 +64,7 @@ class AnimatedPixels {
     }
 
     void setHueCycleInSeconds(float cycle) {
-      for (int i = 0; i < pixels.size(); i++) {
+      for (size_t i = 0; i < pixels.size(); i++) {
         pixels[i]->hue_cycle_in_seconds = cycle;
       }
     }
@@ -67,7 +75,7 @@ class AnimatedPixels {
       this->brightness = brightness;
 
       auto adjusted = 0;
-      for (int i = 0; i < pixels.size(); i++) {
+      for (size_t i = 0; i < pixels.size(); i++) {
         if (pixels[i]->targetBrightness > 0.1f) {
           adjusted++;
           pixels[i]->setTargetBrightness(brightness);
@@ -88,22 +96,22 @@ class AnimatedPixels {
     }
 
 
-    void init(int count) {
+    void init(size_t count) {
 
       LEDS.addLeds<NEOPIXEL, SCREEN_DATA_PIN>(this->leds, count);
 
-      byte brightness = this->brightness * 1;
+      uint8_t brightness = this->brightness * 1;
       LEDS.setBrightness(brightness);
 
 
-      byte initHue = random(0, 255);
-      for (int i = 0; i < this->count; i++) {
-        AnimatedPixel * pixel = new AnimatedPixel();
+      uint8_t initHue = random(0, 255);
+      for (size_t i = 0; i < this->count; i++) {
+        Pixel * pixel = new Pixel();
         pixel->position = i;
         pixel->hue = initHue;
         pixel->saturation = 255;
         pixel->brightness = this->brightness;
-        pixel->mode = AnimatedPixel::Mode::rainbow;
+        pixel->mode = Pixel::Mode::rainbow;
 
         pixels.push_back(pixel);
 
@@ -115,12 +123,12 @@ class AnimatedPixels {
 
     void render() {
       
-      for (int i = 0; i < pixels.size(); i++) {
+      for (size_t i = 0; i < pixels.size(); i++) {
 
-        AnimatedPixel * pixel = pixels[i];
+        Pixel * pixel = pixels[i];
 
         switch(pixel->colorMode){
-          case AnimatedPixel::ColorMode::COLOR_RGB:
+          case Pixel::ColorMode::COLOR_RGB:
             if(pixel->brightness < 0.01f){
               leds[pixel->position].setRGB(0, 0, 0);
             }else{
@@ -128,20 +136,29 @@ class AnimatedPixels {
             }
             break;
 
-          case AnimatedPixel::ColorMode::COLOR_HSV:
-            byte brightness = pixel->getBrightness();
+          case Pixel::ColorMode::COLOR_HSV:
+            uint8_t brightness = pixel->getBrightness();
 
-//          int iHue = pixels[i]->hue % 256;
-            uint8_t hue = pixels[i]->hue;
-            leds[pixel->position].setHSV(hue, pixel->saturation, brightness);
+            leds[pixel->position].setHSV(pixel->hue, pixel->saturation, brightness);
             break;  
+        }
+
+        if(pixel->brightness > 0.01f){
+            
+            // Serial.printf("led[%03d]: %02x %02x %02x pixel %02x %02x %02x\n", i, leds[i].r, leds[i].g, leds[i].b, (uint8_t)pixel->hue, (uint8_t)pixel->saturation, (uint8_t)pixel->brightness);
         }
 
 
       }
 
+    // //   Serial.println();
+    //   for (size_t i = 0; i < pixels.size(); i++) {
+    //     leds[i].setRGB(i==0?255:0, 0, 0);
+    //   }
+
+
       FastLED.show();
-      
+
     }
     
     void debug(){
@@ -160,7 +177,7 @@ class AnimatedPixels {
 
       float timeFactor = difference / 1000000.0f;
 
-      for (int i = 0; i < pixels.size(); i++) {
+      for (size_t i = 0; i < pixels.size(); i++) {
         pixels[i]->tick(timeFactor);
       }
 
@@ -175,73 +192,73 @@ class AnimatedPixels {
     void clear(bool force) {
       
 //      Serial.println(force ? "Clearing screen forced" : "Clearing screen");
-      for (int i = 0; i < this->count; i++) {
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->clear(force);
       }
     }
 
     void mono() {
       
-      this->mode = AnimatedPixels::Mode::SYNCHRONOUS;
-      byte hue = random(0, 255);
+      this->mode = Screen::Mode::SYNCHRONOUS;
+      uint8_t hue = random(0, 255);
       this->setHSV(hue, 255, this->brightness);
       this->hue_cycle_in_seconds = 0.0f;
-      for (int i = 0; i < this->count; i++) {
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->hue_cycle_in_seconds = this->hue_cycle_in_seconds;
       }
       this->showSettings();
     }
 
-    void colorMode(AnimatedPixel::ColorMode mode){
-      for (int i = 0; i < this->count; i++) {
+    void colorMode(Pixel::ColorMode mode){
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->colorMode = mode;
       }
     }
     
 
     void synchronize() {
-      this->mode = AnimatedPixels::Mode::SYNCHRONOUS;
-      byte hue = random(0, 255);
+      this->mode = Screen::Mode::SYNCHRONOUS;
+      uint8_t hue = random(0, 255);
       this->setHSV(hue, 255, this->brightness);
       this->hue_cycle_in_seconds = 120.0f;
-      for (int i = 0; i < this->count; i++) {
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->hue_cycle_in_seconds = this->hue_cycle_in_seconds;
       }
       this->showSettings();
     }
 
     void setHSV(float hue, float saturation, float brightness){
-      for (int i = 0; i < this->count; i++) {
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->hue = hue;
         pixels[i]->saturation = saturation;
       }
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_HSV);
+      this->colorMode(Pixel::ColorMode::COLOR_HSV);
       this->setBrightness(brightness);
     }
 
-    void setRGB(byte r, byte g, byte b){
-      for (int i = 0; i < this->count; i++) {
+    void setRGB(uint8_t r, uint8_t g, uint8_t b){
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->r = r;
         pixels[i]->g = g;
         pixels[i]->b = b;
       }
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_RGB);
+      this->colorMode(Pixel::ColorMode::COLOR_RGB);
     }
 
     void randomize() {
-      this->mode = AnimatedPixels::Mode::RANDOM;
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_HSV);
-      for (int i = 0; i < this->count; i++) {
-        byte hue = random(0, 255);
+      this->mode = Screen::Mode::RANDOM;
+      this->colorMode(Pixel::ColorMode::COLOR_HSV);
+      for (size_t i = 0; i < this->count; i++) {
+        uint8_t hue = random(0, 255);
         pixels[i]->hue = hue;
       }
       this->showSettings();
     }
 
     void jitterize() {
-      this->mode = AnimatedPixels::Mode::JITTER;
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_HSV);
-      for (int i = 0; i < this->count; i++) {
+      this->mode = Screen::Mode::JITTER;
+      this->colorMode(Pixel::ColorMode::COLOR_HSV);
+      for (size_t i = 0; i < this->count; i++) {
         float interval = random(2, this->hue_cycle_in_seconds);
         pixels[i]->hue_cycle_in_seconds = interval;
       }
@@ -250,19 +267,19 @@ class AnimatedPixels {
 
     void gradientize() {
       this->synchronize();
-      this->mode = AnimatedPixels::Mode::RAINBOW;
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_HSV);
-      for (int i = 0; i < this->count; i++) {
+      this->mode = Screen::Mode::RAINBOW;
+      this->colorMode(Pixel::ColorMode::COLOR_HSV);
+      for (size_t i = 0; i < this->count; i++) {
         pixels[i]->hue += i;
       }
       this->showSettings();
     }
 
     void rainbow() {
-      this->mode = AnimatedPixels::Mode::RAINBOW;
-      this->colorMode(AnimatedPixel::ColorMode::COLOR_HSV);
-      for (int i = 0; i < pixels.size(); i++) {
-        AnimatedPixel * pixel = pixels[i];
+      this->mode = Screen::Mode::RAINBOW;
+      this->colorMode(Pixel::ColorMode::COLOR_HSV);
+      for (size_t i = 0; i < pixels.size(); i++) {
+        Pixel * pixel = pixels[i];
         pixel->setRainbow(this->brightness);
       }
     }

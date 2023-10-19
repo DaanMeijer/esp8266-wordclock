@@ -1,7 +1,10 @@
 #define FADE_IN_TIME_IN_SECONDS 5.0f
 #define FADE_OUT_TIME_IN_SECONDS 5.0f
 
-class AnimatedPixel {
+
+#include <Arduino.h>
+
+class Pixel {
 
   public:
     enum ColorMode{
@@ -35,6 +38,9 @@ class AnimatedPixel {
     
     float maxBrightness = 255.0f;
 
+    float fadeInTime = 5.0f;
+    float fadeOutTime = 5.0f;
+
     Mode mode = constant;
 
     void tickBrightness(float timeFactor){
@@ -49,17 +55,17 @@ class AnimatedPixel {
       }
 
       if(this->brightness - this->targetBrightness > 0.01f){
-          this->brightness = std::max(0.0f,this->brightness - (timeFactor * (maxBrightness/FADE_OUT_TIME_IN_SECONDS)));
+          this->brightness = std::max(0.0f,this->brightness - (timeFactor * (maxBrightness/this->fadeOutTime)));
       }
       
       if(this->brightness - this->targetBrightness < -0.01f){
-          this->brightness = std::min(255.0f,this->brightness + (timeFactor * (maxBrightness/FADE_IN_TIME_IN_SECONDS)));
+          this->brightness = std::min(255.0f,this->brightness + (timeFactor * (maxBrightness/this->fadeInTime)));
       }
       
     }
 
-    byte getBrightness(){
-      byte result = map(this->brightness, 0, 255, 0, 255);
+    uint8_t getBrightness(){
+      uint8_t result = map(this->brightness, 0, 255, 0, 255);
       return result;
     }
     

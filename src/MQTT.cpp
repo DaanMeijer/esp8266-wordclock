@@ -1,21 +1,26 @@
-#include <ESP8266WiFi.h>
+#include "MQTT.hpp"
+
 #include <PubSubClient.h>
+
+
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-struct SubscribedChannel {
-  String * topic;
-  void (*callback)(byte *, unsigned int);
-};
 
 std::vector<SubscribedChannel> * channels = new std::vector<SubscribedChannel>();
+
+char mqtt_server[40] = "manus";
+char mqtt_port[6] = "1883";
 
 void connect() {
   
   Serial.print("Attempting MQTT connection...");
   // Create a random client ID
-  String clientId = "ESP8266Client-";
+  String clientId = "Konijntje-";
   clientId += String(ESP.getChipId());
   // Attempt to connect
   if (client.connect(clientId.c_str())) {
@@ -32,10 +37,6 @@ void connect() {
   }
 }
 
-const char* mqtt_server = "10.205.1.1";
-const int mqtt_port = 1883;
-
-
 void MQTT_publish(const char * topic, String str){
   char * buff = new char[str.length() + 1];
   str.toCharArray(buff, str.length() + 1);
@@ -44,17 +45,13 @@ void MQTT_publish(const char * topic, String str){
 }
 
 void MQTT_publish(const char * topic, const char * msg){
-  Serial.print("MQTT_publish to: ");
-  Serial.print(topic);
-  Serial.print(" msg: ");
-  Serial.println(msg);
-  client.publish(topic, msg );
+  client.publish(topic, msg);
 }
 
-void (*pCallback)(byte *, unsigned int) = NULL;
+void (*pCallback)(uint8_t *, unsigned int) = NULL;
 
 
-void MQTT_subscribe(char * topic, void (*callback)(byte *, unsigned int)){
+void MQTT_subscribe(char * topic, void (*callback)(uint8_t *, unsigned int)){
   Serial.println("MQTT_subscribe");
   
   Serial.printf("Topic: [%s]\n", topic);
@@ -68,26 +65,24 @@ void MQTT_subscribe(char * topic, void (*callback)(byte *, unsigned int)){
 
 
 
-void MQTT_callback(char* topic, byte * payload, unsigned int length){
+void MQTT_callback(char* topic, uint8_t * payload, unsigned int length){
 
   Serial.println("MQTT_callback");
   
   for (auto channel = channels->begin(); channel != channels->end(); ++channel){  
     if(channel->topic->equals(topic)){
-      if(channel->callback != NULL){
-        channel->callback(payload, length);  
-      }
+      channel->callback(payload, length);
     }
   }
 
 }
 
 
-void MQTT_init(){
+void MQTT_setup(){
 
   Serial.println("MQTT_init");
   
-  client.setServer(mqtt_server, mqtt_port);
+  client.setServer(mqtt_server, String(mqtt_port).toInt());
   client.setCallback(MQTT_callback);
   
 //  Serial.println("MQTT_init after callback");
@@ -110,7 +105,7 @@ void MQTT_loop(){
     connect();
 
     if(client.connected()){
-      Serial.println("MQTT: success!");
+      Serial.println("MQTT: succes!");
       break;
     }else{
       Serial.println("MQTT: connection failed, try again in 5 seconds");
