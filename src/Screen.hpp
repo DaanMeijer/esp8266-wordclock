@@ -98,7 +98,7 @@ class Screen {
 
     void init(size_t count) {
 
-      LEDS.addLeds<NEOPIXEL, SCREEN_DATA_PIN>(this->leds, count);
+      LEDS.addLeds<WS2812B, SCREEN_DATA_PIN>(this->leds, count);
 
       uint8_t brightness = this->brightness * 1;
       LEDS.setBrightness(brightness);
