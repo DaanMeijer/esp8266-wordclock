@@ -83,6 +83,7 @@ class Pixel {
 
 
         case constant:
+        case clearMe:
           
           break;
       }

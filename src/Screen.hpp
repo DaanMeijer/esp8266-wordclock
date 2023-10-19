@@ -3,7 +3,7 @@
 
 #define LED_TYPE WS2812B  // type of RGB LED's
 
-#include "FastLED.h"
+#include <Adafruit_NeoPixel.h>
 
 #include <Arduino.h>
 
@@ -29,7 +29,7 @@ class Screen {
 
   private:
     size_t count;
-    CRGB * leds;
+    Adafruit_NeoPixel * screen;
 
 
     float brightness = 255.0f;
@@ -56,7 +56,11 @@ class Screen {
       this->count = count;
       this->brightness = brightness;
 
-      this->leds = new CRGB[count];
+      this->screen = new Adafruit_NeoPixel(count, SCREEN_DATA_PIN, NEO_RGB + NEO_KHZ800);
+
+
+      this->screen->begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+      this->screen->show();            // Turn OFF all pixels ASAP
 
       this->init(this->count);
 
@@ -98,10 +102,8 @@ class Screen {
 
     void init(size_t count) {
 
-      LEDS.addLeds<WS2812B, SCREEN_DATA_PIN>(this->leds, count);
-
       uint8_t brightness = this->brightness * 1;
-      LEDS.setBrightness(brightness);
+      screen->setBrightness(brightness);
 
 
       uint8_t initHue = random(0, 255);
@@ -115,7 +117,9 @@ class Screen {
 
         pixels.push_back(pixel);
 
-        initHue++;
+        if(i%10==9){
+          initHue++;
+        }
 
       }
 
@@ -130,16 +134,16 @@ class Screen {
         switch(pixel->colorMode){
           case Pixel::ColorMode::COLOR_RGB:
             if(pixel->brightness < 0.01f){
-              leds[pixel->position].setRGB(0, 0, 0);
+              screen->setPixelColor(i, screen->Color(0, 0, 0));
             }else{
-              leds[pixel->position].setRGB(pixel->r, pixel->g, pixel->b);
+              screen->setPixelColor(i, screen->Color(pixel->r, pixel->g, pixel->b));
             }
             break;
 
           case Pixel::ColorMode::COLOR_HSV:
             uint8_t brightness = pixel->getBrightness();
 
-            leds[pixel->position].setHSV(pixel->hue, pixel->saturation, brightness);
+            this->screen->setPixelColor(i, screen->gamma32(screen->ColorHSV(pixel->hue * 256.0f, pixel->saturation, brightness)));
             break;  
         }
 
@@ -157,7 +161,7 @@ class Screen {
     //   }
 
 
-      FastLED.show();
+      screen->show();
 
     }
     
