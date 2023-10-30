@@ -143,14 +143,13 @@ class Screen {
           case Pixel::ColorMode::COLOR_HSV:
             uint8_t brightness = pixel->getBrightness();
 
-            this->screen->setPixelColor(i, screen->gamma32(screen->ColorHSV(pixel->hue * 256.0f, pixel->saturation, brightness)));
+            this->screen->setPixelColor(i, /*screen->gamma32*/(screen->ColorHSV(pixel->hue * 256.0f, pixel->saturation, brightness)));
             break;  
         }
 
-        if(pixel->brightness > 0.01f){
-            
-            // Serial.printf("led[%03d]: %02x %02x %02x pixel %02x %02x %02x\n", i, leds[i].r, leds[i].g, leds[i].b, (uint8_t)pixel->hue, (uint8_t)pixel->saturation, (uint8_t)pixel->brightness);
-        }
+        // if(pixel->brightness > 0.01f && i == 9){   
+            // Serial.printf("led[%03d]: %06x pixel %02x %02x %02x\n", i, screen->getPixelColor(i), (uint8_t)pixel->hue, (uint8_t)pixel->saturation, (uint8_t)pixel->brightness);
+        // }
 
 
       }
@@ -179,13 +178,18 @@ class Screen {
       long difference = micros() - this->prevTick;
       this->prevTick = micros();
 
+      difference = min(difference, 500000L);
+
       float timeFactor = difference / 1000000.0f;
 
+      // Serial.println("Calculating pixels");
       for (size_t i = 0; i < pixels.size(); i++) {
         pixels[i]->tick(timeFactor);
       }
 
+      // Serial.println("Rendering...");
       this->render();
+      // Serial.println("Rendered");
 
     }
 
@@ -288,6 +292,11 @@ class Screen {
       }
     }
 
+    void on() {
+      for (size_t i = 0; i < pixels.size(); i++) {
+        this->on(i, false);
+      }
+    }
     void on(int pos) {
       this->on(pos, false);
     }

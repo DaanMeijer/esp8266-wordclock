@@ -65,7 +65,8 @@ class Pixel {
     }
 
     uint8_t getBrightness(){
-      uint8_t result = map(this->brightness, 0, 255, 0, 255);
+      uint8_t result = (uint8_t)this->brightness;
+      // uint8_t result = map(this->brightness, 0, 255, 0, 255);
       return result;
     }
     
@@ -89,6 +90,10 @@ class Pixel {
       }
 
       this->tickBrightness(timeFactor);
+
+      // if(this->brightness > 0.01f){
+        // Serial.printf("%0.2fb %0.2fh ", this->brightness, this->hue);
+      // }
     }
 
     void clear(){

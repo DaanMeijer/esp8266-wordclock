@@ -153,8 +153,13 @@ void renderSpecificTime(int relevantHour, int minutes, int seconds){
   
 }
 
+bool enableRenderTime = true;
 
 void renderTime(){
+  if(!enableRenderTime){
+    return;
+  }
+
  Serial.println("renderTime()");
   
   int _hour = hour();
@@ -171,17 +176,27 @@ void renderTime(){
  Serial.println("renderTime done");
 }
 
+int ticksSinceLastSecond = 0;
+char lastSecond = -1;
 void screenTick(){
-  auto start = micros();
+  // auto start = micros();
   screen->tick();
-  auto duration = micros() - start;
-  // Serial.printf("Duration: %06d", duration);
+  // auto duration = micros() - start;
+  // Serial.printf("Duration: % 6d\n", duration);
+
+  ticksSinceLastSecond++;
+  if(second() != lastSecond){
+    lastSecond = second();
+    Serial.printf("% 3d fps\n", ticksSinceLastSecond);
+    ticksSinceLastSecond = 0;
+  }
 }
 
 Scheduler runner;
 
 Task taskTime(5000, TASK_FOREVER, &renderTime);
 Task taskTick(25, TASK_FOREVER, &screenTick);
+Task taskNtp(1000, TASK_FOREVER, &Time_loop);
 
 
 void setup() {
@@ -196,9 +211,11 @@ void setup() {
 
   runner.addTask(taskTime);
   runner.addTask(taskTick);
+  runner.addTask(taskNtp);
 
   taskTime.enable();
   taskTick.enable();
+  taskNtp.enable();
 
   Serial.println("Scheduled tasks");
 
@@ -214,6 +231,7 @@ void setup() {
   
   Serial.println("Cleared screen");
 
+  wdt_enable(5000);
 }
 
 
@@ -221,7 +239,7 @@ void loop() {
 
   wdt_reset();
   
-  Time_loop();
+  // Time_loop();
   // MQTT_loop();
   // OTA_loop();
   // HTTP_loop();
@@ -255,6 +273,11 @@ void loop() {
         setTime(value);
         Serial.print("Set timestamp value to: ");
         Serial.println(value);
+      } else if(name.equals("r")) {
+        screen->rainbow();
+      } else if(name.equals("s")) {
+        enableRenderTime = !enableRenderTime;
+        screen->on();
       }
     }
 
